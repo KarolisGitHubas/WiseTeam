@@ -1,0 +1,185 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Books List{% endblock %}
+
+{% block body %}
+    {% block javascripts %}
+
+
+    {% endblock %} 
+
+    <div class="modal fade" id="edit_book" tabindex="-1" aria-labelledby="edit_bookLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="edit_bookLabel">Edit Book</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editBookForm">
+                        <div class="mb-3">
+                            <label for="bookTitle" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="bookTitle" autocomplete ="off" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookAuthor" class="form-label">Author</label>
+                            <input type="text" class="form-control" id="bookAuthor" autocomplete ="off"  required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookIsbn" class="form-label">ISBN</label>
+                            <input type="text" class="form-control" id="bookIsbn" autocomplete ="off" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookPublicationDate" class="form-label">Publication Date</label>
+                            <input type="date" class="form-control" id="bookPublicationDate" autocomplete ="off" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookGenre" class="form-label">Genre</label>
+                            <input type="text" class="form-control" id="bookGenre" autocomplete ="off" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="bookCopies" class="form-label">Number of Copies</label>
+                            <input type="number" min='1' class="form-control" id="bookCopies"  autocomplete ="off" required>
+                        </div>
+                        <input type="text" id="bookId" autocomplete ="off" hidden>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container mt-4">
+        <div class="card bg-light">
+            <div class="card-header d-flex justify-content-between">
+                <h2>Books List</h2>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#edit_book" id="new">Add a New Book</button>
+            </div> 
+            <div class="card-body">
+                <table id="booksTable" class="display table table-striped">
+                    <thead>
+                        <tr>                    
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>ISBN</th>
+                            <th>Publication Date</th>
+                            <th>Genre</th>
+                            <th>Number of Copies</th>
+                            <th data-orderable="false"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- DataTable will populate this dynamically -->
+                    </tbody>
+                </table>
+      <div class="d-flex justify-content-end">
+    <a href="{{ path('app_logout') }}" class="btn btn-dark btn-sm">Sign out</a>
+</div>
+            </div>
+        </div>  
+    </div>
+
+    <script>
+
+        $(document).ready(function () {
+
+
+            $('#booksTable').DataTable({
+                responsive: true,
+                "ajax": {
+                    "url": "{{ path('api_books') }}", // API endpoint
+                    "dataSrc": function (json) {
+                        console.log("Received data:", json);  // Log the data to check the structure
+                        return json;  // Ensure you return the correct structure (an array of books)
+                    }
+                },
+                "columns": [
+                    {"data": "title"},
+                    {"data": "author"},
+                    {"data": "isbn"},
+                    {"data": "publicationDate"},
+                    {"data": "genre"},
+                    {"data": "numberOfCopies"},
+                    {"data": "edit"}
+                ]
+            });
+
+            $(document).on('click', '#new', function (e) {
+                $('#edit_book').find('form')[0].reset();
+            });
+            $(document).on('click', '.edit', function (e) {
+
+                e.preventDefault();
+
+                var bookId = $(this).data('id');  // Get the book ID from the button
+
+                // Send AJAX request to fetch book details
+                $.ajax({
+                    url: "{{ path('api_book', {'id': 'id'}) }}".replace('id', bookId),
+                    success: function (response) {
+                        // Populate the modal with book details
+                        $('#edit_book #bookId').val(bookId);
+                        $('#edit_book #bookTitle').val(response.title);
+                        $('#edit_book #bookAuthor').val(response.author);
+                        $('#edit_book #bookIsbn').val(response.isbn);
+                        $('#edit_book #bookPublicationDate').val(response.publicationDate);
+                        $('#edit_book #bookGenre').val(response.genre);
+                        $('#edit_book #bookCopies').val(response.numberOfCopies);
+                        $('#edit_book').modal('show');
+                    },
+                    error: function () {
+                        alert('Error fetching book details.');
+                    }
+                });
+            });
+        });
+
+        $(document).on('submit', '#editBookForm', function (e) {
+            e.preventDefault(); // Prevent default form submission
+
+            // Make the AJAX request to save the new book
+            $.ajax({
+                "url": "{{ path('add_book') }}", // API endpoint
+                method: 'POST',
+                data: JSON.stringify({
+                    title: $('#bookTitle').val(),
+                    author: $('#bookAuthor').val(),
+                    isbn: $('#bookIsbn').val(),
+                    publicationDate: $('#bookPublicationDate').val(),
+                    genre: $('#bookGenre').val(),
+                    numberOfCopies: $('#bookCopies').val(),
+                    id: $('#bookId').val()
+                }),
+                success: function (response) {
+                    alert('Book edited sucessfully!');
+                    $('#booksTable').DataTable().ajax.reload();  // Reload DataTable
+                    $('#edit_book').modal('hide');
+                },
+                error: function (xhr, status, error) {
+                    alert('An error occurred: ' + error);
+                }
+            });
+        });
+        $(document).on('click', '.delete', function (e) {
+            e.preventDefault(); // Prevent default behavior (link click)
+
+            var bookId = $(this).data('id'); // Get the ID of the book to be deleted
+
+            if (confirm('Are you sure you want to delete this book?')) {
+                // Make the AJAX request to delete the book
+                $.ajax({
+                    url: "{{ path('delete_book', {'id': 'id'}) }}".replace('id', bookId),
+                    type: 'DELETE', // Use DELETE method
+                    success: function (response) {
+                        alert('Book deleted successfully');
+                        $('#booksTable').DataTable().ajax.reload();  // Reload DataTable
+                    },
+                    error: function (xhr, status, error) {
+                        alert('An error occurred: ' + error);
+                    }
+                });
+            }
+        });
+
+    </script>
+
+{% endblock %}
